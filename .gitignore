@@ -1,2 +1,25 @@
 .gradle/
 build/
+.settings/
+bin/
+doc/
+logs/
+.run/
+run/
+runs/
+node_modules/
+
+.classpath
+.project
+.idea
+
+*.launch
+
+release.md
+
+# exclude generated resource
+common/src/main/resources/de/bluecolored/bluemap/webapp.zip
+core/src/main/resources/de/bluecolored/bluemap/resourceExtensions.zip
+
+#exclude-test-data
+data/test-render
