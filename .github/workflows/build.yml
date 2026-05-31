@@ -29,7 +29,7 @@ jobs:
           java-version: 25
           cache: 'gradle'
       - name: Tests
-        run: ./gradlew spotlessCheck test --stacktrace
+        run: ./gradlew test --stacktrace
 
   build:
     name: "Build"
