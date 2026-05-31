@@ -1,0 +1,19 @@
+license="MIT"
+
+[[mods]]
+modId="bluemap"
+version="${version}"
+displayName="BlueMap"
+description='''A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)'''
+displayTest="IGNORE_SERVER_VERSION"
+
+[[dependencies.bluemap]]
+    modId="neoforge"
+    mandatory=true
+    ordering="NONE"
+    side="BOTH"
+[[dependencies.bluemap]]
+    modId="minecraft"
+    mandatory=true
+    ordering="NONE"
+    side="BOTH"

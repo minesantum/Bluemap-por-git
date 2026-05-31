@@ -1,0 +1,11 @@
+name: BlueMap
+description: "A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)"
+main: de.bluecolored.bluemap.bukkit.BukkitPlugin
+version: "${version}"
+api-version: "${api_version}"
+folia-supported: true
+author: "Blue (TBlueF / Lukas Rieger)"
+website: "https://github.com/BlueMap-Minecraft"
+
+libraries:
+  - "com.flowpowered:flow-math:${flow_math_version}"

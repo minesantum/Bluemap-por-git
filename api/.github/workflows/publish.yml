@@ -1,0 +1,27 @@
+name: Publish
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - '**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with: 
+        submodules: recursive
+        fetch-depth: 0 # needed for versioning
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: 25
+        cache: 'gradle'
+    - name: Build with Gradle
+      run: ./gradlew publish
+      env:
+        BLUECOLORED_USERNAME: ${{ secrets.BLUECOLORED_USERNAME }}
+        BLUECOLORED_PASSWORD: ${{ secrets.BLUECOLORED_PASSWORD }}

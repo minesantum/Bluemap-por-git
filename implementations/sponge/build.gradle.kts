@@ -1,0 +1,79 @@
+import org.spongepowered.gradle.plugin.config.PluginLoaders
+
+plugins {
+    bluemap.implementation
+    bluemap.modrinth
+    bluemap.ore
+    id ( libs.plugins.sponge.plugin.get().pluginId )
+}
+
+val supportedMinecraftVersions = listOf(
+    "26.1", "26.1.1", "26.1.2"
+)
+
+dependencies {
+    api ( project( ":common" ) ) {
+        exclude( group = "com.google.code.gson", module = "gson" )
+        exclude( group = "net.kyori", module = "adventure-api" )
+    }
+
+    api ( libs.bstats.sponge )
+
+    compileOnly ( libs.jetbrains.annotations )
+}
+
+sponge {
+    apiVersion("17.0.0")
+    license("MIT")
+    loader {
+        name(PluginLoaders.JAVA_PLAIN)
+        version("1.0")
+    }
+    plugin("bluemap") {
+        displayName("bluemap")
+        entrypoint("de.bluecolored.bluemap.sponge.SpongePlugin")
+        description("A 3d-map of your Minecraft worlds view-able in your browser using three.js (WebGL)")
+        contributor("Blue (TBlueF, Lukas Rieger)") {
+            description("Lead Developer")
+        }
+        dependency("spongeapi") {
+            optional(false)
+        }
+    }
+}
+
+tasks.shadowJar {
+
+    // airlift
+    relocate ("io.airlift", "de.bluecolored.shadow.airlift")
+
+    // caffeine
+    relocate ("com.github.benmanes.caffeine", "de.bluecolored.shadow.caffeine")
+    relocate ("org.checkerframework", "de.bluecolored.shadow.checkerframework")
+    relocate ("com.google.errorprone", "de.bluecolored.shadow.errorprone")
+
+    // dbcp2
+    relocate ("org.apache.commons", "de.bluecolored.shadow.apache.commons")
+
+    // configurate
+    relocate ("org.spongepowered.configurate", "de.bluecolored.shadow.configurate")
+    relocate ("com.typesafe.config", "de.bluecolored.shadow.typesafe.config")
+    relocate ("io.leangen.geantyref", "de.bluecolored.shadow.geantyref")
+
+    // lz4
+    relocate ("net.jpountz", "de.bluecolored.shadow.jpountz")
+
+    // bstats
+    relocate ("org.bstats", "de.bluecolored.shadow.bstats")
+
+}
+
+oreDeployment {
+    defaultPublication {
+        publishArtifacts.setFrom( tasks.getByName("release").outputs.files.singleFile )
+    }
+}
+
+modrinth {
+    gameVersions.addAll(supportedMinecraftVersions)
+}

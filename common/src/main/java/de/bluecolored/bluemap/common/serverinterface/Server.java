@@ -1,0 +1,122 @@
+/*
+ * This file is part of BlueMap, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package de.bluecolored.bluemap.common.serverinterface;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import de.bluecolored.bluemap.common.debug.DebugDump;
+import de.bluecolored.bluemap.core.util.Caches;
+import de.bluecolored.bluemap.core.util.Tristate;
+import de.bluecolored.bluemap.core.world.World;
+import de.bluecolored.bluemap.core.world.mca.MCAWorld;
+import org.jetbrains.annotations.Nullable;
+
+import java.nio.file.Path;
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface Server {
+
+    Cache<World, Optional<ServerWorld>> SERVER_WORLD_CACHE = Caches.with()
+            .weakKeys()
+            .weakValues()
+            .build();
+
+    @DebugDump
+    @Nullable String getMinecraftVersion();
+
+    /**
+     * Returns the Folder containing the configurations for the plugin
+     */
+    @DebugDump
+    Path getConfigFolder();
+
+    /**
+     * Returns the folder that contains the mod-jars
+     */
+    @DebugDump
+    Optional<Path> getModsFolder();
+
+    /**
+     * Gives the possibility to override the metrics-setting in the config
+     */
+    @DebugDump
+    default Tristate isMetricsEnabled() {
+        return Tristate.UNDEFINED;
+    }
+
+    /**
+     * Returns the correct {@link ServerWorld} for a {@link World} if there is any.
+     */
+    default Optional<ServerWorld> getServerWorld(World world) {
+        return SERVER_WORLD_CACHE.get(world, w -> {
+            if (w instanceof MCAWorld mcaWorld) {
+                return getLoadedServerWorlds().stream()
+                        .filter(serverWorld ->
+                                serverWorld.getWorldFolder().toAbsolutePath().normalize()
+                                        .equals(mcaWorld.getWorldFolder().toAbsolutePath().normalize()) &&
+                                        serverWorld.getDimension().equals(mcaWorld.getDimension())
+                        )
+                        .findAny();
+            }
+            return Optional.empty();
+        });
+    }
+
+    /**
+     * Returns the correct {@link ServerWorld} for any Object if there is any, this should return the correct ServerWorld
+     * for any implementation-specific object that represent or identify a world in any way.<br>
+     * Used for the API implementation.
+     */
+    default Optional<ServerWorld> getServerWorld(Object world) {
+        if (world instanceof World)
+            return getServerWorld((World) world);
+        return Optional.empty();
+    }
+
+    /**
+     * Returns all loaded worlds of this server.
+     */
+    @DebugDump
+    Collection<ServerWorld> getLoadedServerWorlds();
+
+    /**
+     * Returns a collection of the states of players that are currently online
+     */
+    @DebugDump
+    Map<UUID, Player> getOnlinePlayers();
+
+    /**
+     * Registers a ServerEventListener, every method of this interface should be called on the specified events
+     */
+    void registerListener(ServerEventListener listener);
+
+    /**
+     * Removes all registered listeners
+     */
+    void unregisterAllListeners();
+
+}

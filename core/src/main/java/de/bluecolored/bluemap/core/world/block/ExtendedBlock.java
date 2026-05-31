@@ -1,0 +1,206 @@
+/*
+ * This file is part of BlueMap, licensed under the MIT License (MIT).
+ *
+ * Copyright (c) Blue (Lukas Rieger) <https://bluecolored.de>
+ * Copyright (c) contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+package de.bluecolored.bluemap.core.world.block;
+
+import de.bluecolored.bluemap.core.map.hires.RenderSettings;
+import de.bluecolored.bluemap.core.map.mask.Mask;
+import de.bluecolored.bluemap.core.resources.pack.resourcepack.ResourcePack;
+import de.bluecolored.bluemap.core.world.*;
+import de.bluecolored.bluemap.core.world.biome.Biome;
+import lombok.AccessLevel;
+import lombok.Getter;
+import org.jetbrains.annotations.Nullable;
+
+import java.util.Objects;
+
+public class ExtendedBlock implements BlockAccess {
+
+    @Getter private int x, y, z;
+    private BlockAccess blockAccess;
+
+    @Getter private ResourcePack resourcePack;
+    @Getter private RenderSettings renderSettings;
+    @Getter private DimensionType dimensionType;
+
+    private @Nullable BlockProperties properties;
+
+    private @Nullable Mask renderMask;
+    @Getter(AccessLevel.PROTECTED) private final MaskArea maskArea = new MaskArea();
+
+    private boolean insideRenderBoundsCalculated, insideRenderBounds;
+    private boolean isCaveCalculated, isCave;
+
+    public ExtendedBlock(BlockAccess blockAccess, ResourcePack resourcePack, RenderSettings renderSettings, DimensionType dimensionType) {
+        this.blockAccess = Objects.requireNonNull(blockAccess);
+        this.resourcePack = Objects.requireNonNull(resourcePack);
+        this.renderSettings = Objects.requireNonNull(renderSettings);
+        this.dimensionType = Objects.requireNonNull(dimensionType);
+    }
+
+    @Override
+    public void set(int x, int y, int z) {
+        if (this.y == y && this.x == x && this.z == z)
+            return;
+
+        this.x = x;
+        this.y = y;
+        this.z = z;
+        this.blockAccess.set(x, y, z);
+
+        this.properties = null;
+        this.insideRenderBoundsCalculated = false;
+        this.isCaveCalculated = false;
+        if (!maskArea.isInside(x, z)) this.renderMask = null;
+    }
+
+    @Override
+    public ExtendedBlock copy() {
+        return new ExtendedBlock(blockAccess.copy(), resourcePack, renderSettings, dimensionType);
+    }
+
+    protected void copyFrom(ExtendedBlock extendedBlock) {
+        this.x = extendedBlock.x;
+        this.y = extendedBlock.y;
+        this.z = extendedBlock.z;
+        this.blockAccess = extendedBlock.blockAccess;
+        this.resourcePack = extendedBlock.resourcePack;
+        this.renderSettings = extendedBlock.renderSettings;
+        this.dimensionType = extendedBlock.dimensionType;
+        this.properties = extendedBlock.properties;
+        this.insideRenderBoundsCalculated = extendedBlock.insideRenderBoundsCalculated;
+        this.insideRenderBounds = extendedBlock.insideRenderBounds;
+        this.isCaveCalculated = extendedBlock.isCaveCalculated;
+        this.isCave = extendedBlock.isCave;
+        this.renderMask = extendedBlock.renderMask;
+        this.maskArea.copyFrom(extendedBlock.maskArea);
+    }
+
+    @Override
+    public BlockState getBlockState() {
+        if (renderSettings.isRenderEdges() && !isInsideRenderBounds()) return BlockState.AIR;
+        return blockAccess.getBlockState();
+    }
+
+    @Override
+    public LightData getLightData() {
+        LightData ld = blockAccess.getLightData();
+        if (renderSettings.isRenderEdges() && !isInsideRenderBounds()) ld.set(dimensionType.hasSkylight() ? renderSettings.getEdgeLightStrength() : 0, ld.getBlockLight());
+        return ld;
+    }
+
+    @Override
+    public Biome getBiome() {
+        return blockAccess.getBiome();
+    }
+
+    @Override
+    public @Nullable BlockEntity getBlockEntity() {
+        return blockAccess.getBlockEntity();
+    }
+
+    @Override
+    public boolean hasOceanFloorY() {
+        return blockAccess.hasOceanFloorY();
+    }
+
+    @Override
+    public int getOceanFloorY() {
+        return blockAccess.getOceanFloorY();
+    }
+
+    public BlockProperties getProperties() {
+        if (properties == null) properties = resourcePack.getBlockProperties(getBlockState());
+        return properties;
+    }
+
+    /**
+     * The returned {@link Mask} is only valid for the area currently defined in {@link #getMaskArea()}
+     */
+    protected Mask getRenderMask() {
+        if (renderMask == null) {
+            maskArea.setAround(x, z);
+            renderMask = maskArea.apply(renderSettings.getRenderMask());
+        }
+        return renderMask;
+    }
+
+    @SuppressWarnings("BooleanMethodIsAlwaysInverted")
+    public boolean isInsideRenderBounds() {
+        if (!insideRenderBoundsCalculated) {
+            insideRenderBounds = getRenderMask().test(getX(), getY(), getZ());
+            insideRenderBoundsCalculated = true;
+        }
+
+        return insideRenderBounds;
+    }
+
+    public boolean isRemoveIfCave() {
+        if (!isCaveCalculated) {
+            isCave = getY() < renderSettings.getRemoveCavesBelowY() &&
+                    (
+                            !hasOceanFloorY() ||
+                            getY() < getOceanFloorY() +
+                                    renderSettings.getCaveDetectionOceanFloor()
+                    );
+            isCaveCalculated = true;
+        }
+
+        return isCave;
+    }
+
+    protected static class MaskArea {
+        private int minX, minZ, maxX, maxZ;
+
+        public MaskArea() {
+            setAround(0, 0);
+        }
+
+        public boolean isInside(int x, int z) {
+            return
+                    x >= minX && x <= maxX &&
+                    z >= minZ && z <= maxZ;
+        }
+
+        private void setAround(int x, int z) {
+            this.minX = x & 0xFFFFFFF0;
+            this.minZ = z & 0xFFFFFFF0;
+            this.maxX = minX + 15;
+            this.maxZ = minZ + 15;
+        }
+
+        private void copyFrom(MaskArea maskArea) {
+            this.minX = maskArea.minX;
+            this.minZ = maskArea.minZ;
+            this.maxX = maskArea.maxX;
+            this.maxZ = maskArea.maxZ;
+        }
+
+        public Mask apply(Mask mask) {
+            return mask.submask(minX, Integer.MIN_VALUE, minZ, maxX, Integer.MAX_VALUE, maxZ);
+        }
+
+    }
+
+}

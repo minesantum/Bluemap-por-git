@@ -1,0 +1,24 @@
+name: Build
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with: 
+        submodules: recursive
+        fetch-depth: 0 # needed for versioning
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: 25
+        cache: 'gradle'
+    - name: Build with Gradle
+      run: ./gradlew clean build test
+    - uses: actions/upload-artifact@v4
+      with:
+        name: artifact
+        path: build/libs/*
