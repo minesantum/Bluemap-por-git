@@ -29,7 +29,9 @@ jobs:
           java-version: 25
           cache: 'gradle'
       - name: Tests
-        run: ./gradlew test --stacktrace
+        run: |
+          chmod +x ./gradlew
+          ./gradlew test --stacktrace
 
   build:
     name: "Build"
@@ -47,7 +49,9 @@ jobs:
           java-version: 25
           cache: 'gradle'
       - name: Build with Gradle
-        run: ./gradlew :common:buildWebapp :paper:shadowJar --stacktrace
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :common:buildWebapp :paper:shadowJar --stacktrace
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
