@@ -69,35 +69,57 @@ export class WeatherManager {
     animate(event) {
         if (this.disposed) return;
         
-        let delta = event.detail.delta / 1000; // Tomamos el delta exacto del motor de BlueMap
+        let delta = event.detail.delta / 1000;
         if (!delta || delta <= 0) delta = 0.016;
 
-        // Si la pestaña estaba en segundo plano, evitamos saltos temporales enormes
         if (delta > 0.1) delta = 0.1;
 
-        if (this.isRaining && this.rainSystem.visible) {
+        if (this.isRaining && this.rainSystem.visible && this.cameraPos) {
             let matrices = this.rainSystem.instanceMatrix.array;
+            let cx = this.cameraPos.x;
+            let cy = this.cameraPos.y;
+            let cz = this.cameraPos.z;
             
             for (let i = 0; i < this.particleCount; i++) {
-                matrices[i * 16 + 13] += this.velocities[i] * delta; // 13 is the Y position in 4x4 matrix
+                matrices[i * 16 + 13] += this.velocities[i] * delta; // 13 is Y position
+
+                // Comprobamos la distancia de cada gota a la cámara
+                let px = matrices[i * 16 + 12]; // 12 is X position
+                let py = matrices[i * 16 + 13];
+                let pz = matrices[i * 16 + 14]; // 14 is Z position
+
+                // Envolvemos las gotas alrededor de la cámara al instante, por si te teletransportas
+                while (px - cx > 40) px -= 80;
+                while (px - cx < -40) px += 80;
                 
-                // Si la gota cae por debajo del límite, reaparece arriba conservando su offset
-                if (matrices[i * 16 + 13] < -40) {
-                    matrices[i * 16 + 13] += 80; // Hace loop sin crear "huecos"
+                while (pz - cz > 40) pz -= 80;
+                while (pz - cz < -40) pz += 80;
+
+                // Si cae muy abajo, la subimos (y re-asignamos velocidad para aleatoriedad)
+                if (py - cy < -40) {
+                    py += 80;
                     this.velocities[i] = -(Math.random() * 15 + 35);
                 }
+                while (py - cy > 40) py -= 80;
+
+                // Guardamos los nuevos valores en la matriz
+                matrices[i * 16 + 12] = px;
+                matrices[i * 16 + 13] = py;
+                matrices[i * 16 + 14] = pz;
             }
             this.rainSystem.instanceMatrix.needsUpdate = true;
             
-            // Forzamos al motor a redibujar contínuamente a 60 FPS llamando a un evento ligero
             dispatchEvent(this.events, "bluemapTileLoaded", {});
         }
     }
 
     updatePosition(cameraPosition) {
-        if (!this.rainSystem) return;
-        // Make the rain volume center around the camera
-        this.rainSystem.position.set(cameraPosition.x, cameraPosition.y, cameraPosition.z);
+        // En lugar de mover el sistema entero (lo que hace que la lluvia te persiga),
+        // guardamos la posición de la cámara para que las gotas envuelvan al jugador suavemente.
+        this.cameraPos = cameraPosition;
+        if (this.rainSystem && this.rainSystem.position.x !== 0) {
+             this.rainSystem.position.set(0, 0, 0); // Lo anclamos al mundo real
+        }
     }
 
     update() {
